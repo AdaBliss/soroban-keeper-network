@@ -243,3 +243,16 @@ export function startMetricsServer(collector: MetricsCollector, port = 9090): ht
 
   return server;
 }
+
+/** Minimal reputation gauge used by integrations that only need the current score. */
+export class Metrics {
+  public currentReputation = 0;
+
+  public setReputation(rep: number): void {
+    this.currentReputation = rep;
+  }
+
+  public getReputationMetric(): string {
+    return `keeper_reputation ${this.currentReputation}`;
+  }
+}

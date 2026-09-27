@@ -15,6 +15,9 @@ Keeper Bot v2 is a high-throughput, enterprise-ready off-chain daemon for the So
 - **Persistent State & Idempotency**: Backed by PostgreSQL (`DATABASE_URL`) to record task outcomes and prevent duplicate claims or executions across restarts.
 - **Multi-Account Concurrency**: Distributes tasks across multiple signing accounts in `SIGNING_KEY_POOL` to bypass single-account sequence number serialization.
 - **Pluggable Executors**: Discoverable executor modules with automatic metrics registration.
+- **Graceful Shutdown**: Stops accepting new work on `SIGINT` or `SIGTERM`, drains in-flight workers, and bounds shutdown time.
+- **Lock-Aware Scheduling**: Rechecks claimed tasks at their unlock ledger while continuing normal task discovery.
+- **Scheduled and Fee-Aware Withdrawals**: Supports fixed schedules and withdrawal decisions based on network fees.
 
 ---
 
@@ -48,3 +51,5 @@ npm start
 ```
 
 For migration instructions from v1, see [docs/KEEPER_BOT_V2_MIGRATION.md](../../docs/KEEPER_BOT_V2_MIGRATION.md).
+
+For design rationale and the shutdown, scheduling, and withdrawal architecture, see [docs/KEEPER_BOT_V2_DESIGN.md](../../docs/KEEPER_BOT_V2_DESIGN.md).
