@@ -392,6 +392,45 @@ returns `(1, 10000000)` — one incident, 1.0 XLM total slashed.
   - **0077** — signature-based reference verifier (used in this walkthrough)
   - **0078** — oracle-based reference verifier
   - **0079** — transaction-inclusion reference verifier
+
+---
+
+## Treasury Walkthrough
+
+This section walks through the lifecycle of the treasury contract, from configuring recipients to distributing a sweep.
+For detailed reasoning behind the treasury's design, see [`docs/TREASURY_DESIGN.md`](TREASURY_DESIGN.md).
+
+### 1. Configuring Recipients
+The admin configures the recipients and their respective shares.
+```bash
+stellar contract invoke --id $TREASURY_ID --source admin \
+  --network testnet \
+  -- set_recipients --recipients ...
+```
+
+### 2. Triggering a Sweep
+The admin sweeps accrued fees from the registry into the treasury.
+```bash
+stellar contract invoke --id $REGISTRY_ID --source admin \
+  --network testnet \
+  -- sweep_fees --treasury $TREASURY_ID --amount 1000
+```
+
+### 3. Distribution
+Any user can trigger the distribution of the treasury's balance to the configured recipients based on their shares.
+```bash
+stellar contract invoke --id $TREASURY_ID --source any_user \
+  --network testnet \
+  -- distribute
+```
+
+### 4. Verifying Balances
+After distribution, verify that each recipient's balance has increased by calling the treasury's view methods.
+```bash
+stellar contract invoke --id $TREASURY_ID --source any_user \
+  --network testnet \
+  -- get_recipient_balance --recipient $RECIPIENT_ADDRESS
+```
   - **0289** — stake storage and `stake_deposit`
   - **0290** — unbonding: `initiate_unbond` / `withdraw_stake`
   - **0291** — `slash` and its authorization model

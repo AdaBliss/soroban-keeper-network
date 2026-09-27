@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — treasury contract initial release (E08)
+
+- The treasury contract is introduced with its own `VERSION` constant starting at 1.
+- No changes to the registry's `sweep_fees` behavior were necessary, so its version remains unchanged.
 ### Added — treasury fee routing (E08)
 
 - New `contracts/treasury` crate (`keeper-treasury`, `VERSION = 1`): splits

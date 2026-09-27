@@ -1,4 +1,7 @@
 #![no_std]
+
+/// Semantic version of the treasury contract logic.
+pub const VERSION: u32 = 1;
 //! # Keeper Network Treasury (epic E08)
 //!
 //! Receives the protocol fees the registry's `sweep_fees` moves out of its
