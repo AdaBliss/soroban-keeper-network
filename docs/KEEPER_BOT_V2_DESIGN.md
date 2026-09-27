@@ -142,3 +142,83 @@ function computeUnlockLedger(task) {
 During the cross-SDK audit, **no unintentional divergences or bugs were found** between Keeper Bot v2, the Rust SDK, and the core contract:
 * All differences between the reference examples and production bots are deliberate design choices reflecting their respective roles (introductory documentation vs. competitive node operation).
 * Arithmetic for fees, lock expiration, and retry backoff strictly adheres to the protocol specifications defined in `contracts/keeper-registry`.
+
+
+## 5. Operational State, Prioritization, and Issue Requirements
+
+### State Persistence Model
+
+* **Problem**: v1 maintains no state across restarts or rounds, causing potential duplicate processing or lack of visibility into in-flight claims.
+* **Solution**: `src/state.js` maintains task lifecycle states:
+  * `DISCOVERED`: Task event picked up from ledger events or indexer.
+  * `EVALUATING`: Profitability and eligibility checks in progress.
+  * `CLAIMING` / `CLAIMED`: Task locked on-chain by this keeper.
+  * `EXECUTING`: Off-chain computation in flight.
+  * `EXECUTED`: Final `execute_task` completed on-chain.
+  * `SKIPPED`: Task intentionally bypassed (with structured reason).
+* Tasks marked `CLAIMING` or `CLAIMED` are locked within the local process, preventing concurrent internal workers from racing on the same task ID.
+
+### Task Prioritization
+
+* **Ranking by Expected Net Profit**: Candidate tasks discovered in a round are evaluated by expected net reward (`reward - estimatedGasFees`). Tasks are sorted descending by net profit.
+* High-value tasks are claimed first, preventing lower-reward tasks from consuming available concurrency slots or budget allocations.
+
+### Hard Ceiling on Per-Round Resource Spend (Issue #407)
+
+#### Problem Statement
+Concurrency and prioritization increase the volume of transactions a single keeper round can attempt. Without an explicit ceiling, candidate bursts (such as batch task registrations) or volatile network fee spikes could submit far more transactions than an operator intended, eroding margins or causing runaway fee spend.
+
+#### Mechanism & Invariant Guarantees
+1. **Configurable Ceiling**: Configured via `MAX_ROUND_SPEND_STROOPS` (default: 5,000,000 stroops = 0.5 XLM).
+2. **Independent Backstop**: The spend ceiling is evaluated independently of task-level profitability. A task may have high expected profit, but if the round's cumulative spend has reached `MAX_ROUND_SPEND_STROOPS`, no further transactions (claims or executions) are dispatched in that round.
+3. **Distinct Logging**: When the ceiling is reached, the keeper emits a distinct log:
+   `[RESOURCE CEILING] Hard round spend ceiling reached: spent ${roundSpend} stroops (ceiling: ${maxSpend} stroops). Halting further submissions this round.`
+4. **Metrics Tracking**: Increments `spend_ceiling_reached` in `src/metrics.js` and records skipped candidates under the structured skip reason `"spend_ceiling_reached"`.
+
+---
+
+### Multi-Keeper Competition & Lost-Race Handling (Issue #404)
+
+#### Problem Statement
+In production, multiple independent keeper bots compete to claim the same profitable tasks. In v1, an on-chain rejection due to a lost race (`TaskAlreadyClaimed`) was logged as an error and added to `summary.errors`, misrepresenting normal competitive dynamics as system failures.
+
+#### Expected Behavior
+1. **Success-with-Skip**: A lost claim race is recognized via `isLostClaimRaceError(err)` (matching error code 2 / `TaskAlreadyClaimed` / "already claimed" / "already locked" / "TaskNotPending"). It is treated as normal competition (`success-with-skip`), NOT logged as an error, and NOT appended to `summary.errors`.
+2. **Round Continuation**: The bot logs `[COMPETITION] Task ${taskId} already claimed by competitor; treating as normal skip.` and immediately proceeds to evaluate remaining candidates in the queue.
+3. **Metrics Distinction**: `src/metrics.js` records lost claim races under a dedicated counter `metrics.recordSkip("lost_claim_race", taskId)`, keeping it cleanly separated from `unprofitable`, `unsupported_executor`, or RPC errors.
+
+---
+
+### Deferral of Verifier-Aware Proof Generation (Issue #412)
+
+#### Context and Problem Statement
+Earlier backlog issues (`0090`, `0091`, and issues in the `0102`–`0140` range) proposed bot support for tasks gated by an on-chain verifier contract. Those design artifacts (`docs/VERIFIER_DESIGN.md`, `docs/VERIFIERS.md`) anticipated that keeper bots would synthesize zero-knowledge or external cryptographic proofs before executing tasks.
+
+However, an audit of the deployed `KeeperRegistry` contract (`contracts/keeper-registry/src/`) reveals that **the contract-side verifier infrastructure does not exist**:
+1. **Missing `Task.verifier` Field**: The `Task` struct on-chain has fields `id`, `owner`, `task_type`, `status`, `reward`, `calldata`, `deadline`, and `unlock_at`. It has **no** `verifier` field.
+2. **Missing Entry Points**: The contract does **not** expose `update_verifier`, `set_verifier`, or `verify`.
+3. **Missing Cross-Contract Invocation**: `execute_task` validates keeper locks, status, and caller authorization, but makes **no** cross-contract call to an external verifier.
+4. **Placeholder Error Variant**: Only a placeholder error variant `IncompatibleVerifierInterface = 6` exists in `contracts/keeper-registry/src/errors.rs`, with no reachable code path inside the contract that ever constructs or returns it.
+
+#### Explicit Deferral Policy
+In accordance with Issue **#412**:
+* **Explicit Dependency**: Verifier-aware proof generation in the bot is strictly blocked on the contract-side feature landing.
+* **No Speculative Code**: **No bot code is written against an unimplemented verifier interface in keeper-bot-v2.** Building bot-side logic against a non-existent on-chain interface creates untestable dead code and misleads operators into believing the capability is operational.
+* **Supersession Plan**: When the contract-side verifier capabilities are formally introduced (adding `Task.verifier`, registry verification entry points, and cross-contract validation in `execute_task`), this placeholder section will be superseded by active proof-generation implementations referencing the specific issue numbers assigned to that epic.
+
+---
+
+### Performance Benchmarking Methodology (Issue #413)
+
+#### Benchmark Harness
+The benchmark harness in `examples/keeper-bot-v2/benchmark/` tests Keeper Bot v1 (sequential) against Keeper Bot v2 (concurrent + prioritized) under strictly identical simulated conditions:
+* **Workload**: 20 candidate tasks with heterogeneous reward distributions (10,000 stroops to 5,000,000 stroops).
+* **Simulated Network Latency**: Controlled 25ms delay per RPC simulation, claim, and execution call.
+* **Contention**: 30% phantom competitor claim rate simulating real-world race conditions.
+* **Metrics Recorded**:
+  * Round Latency (ms)
+  * Tasks Won / Executed
+  * Net Profit Realized (stroops)
+  * Error Counts & Lost Race Classification
+
+The committed report is preserved in `examples/keeper-bot-v2/benchmark/REPORT.md`.

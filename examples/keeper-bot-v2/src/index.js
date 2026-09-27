@@ -22,8 +22,48 @@ const {
   computeUnlockLedger,
   LockWindowScheduler,
 } = require("./scheduling.js");
+const { loadConfig } = require("./config.js");
+const { MetricsCollector, metrics } = require("./metrics.js");
+const { TaskStatus, TaskStateRegistry } = require("./state.js");
+const {
+  ESTIMATED_CLAIM_FEE_STROOPS,
+  ESTIMATED_EXECUTE_BASE_FEE_STROOPS,
+  estimateTaskProfitability,
+} = require("./profitability.js");
+const { prioritizeCandidates } = require("./prioritization.js");
+const {
+  TASK_TYPE_NAMES,
+  EXECUTORS,
+  ttlExtensionExecutor,
+  simulatedExecutor,
+  executeTaskOffChain,
+} = require("./executors.js");
+const {
+  DEFAULT_MAX_ROUND_SPEND_STROOPS,
+  isLostClaimRaceError,
+  isPermanentError,
+  runKeeperRound,
+} = require("./loop.js");
 
 module.exports = {
+  loadConfig,
+  MetricsCollector,
+  metrics,
+  TaskStatus,
+  TaskStateRegistry,
+  ESTIMATED_CLAIM_FEE_STROOPS,
+  ESTIMATED_EXECUTE_BASE_FEE_STROOPS,
+  estimateTaskProfitability,
+  prioritizeCandidates,
+  TASK_TYPE_NAMES,
+  EXECUTORS,
+  ttlExtensionExecutor,
+  simulatedExecutor,
+  executeTaskOffChain,
+  DEFAULT_MAX_ROUND_SPEND_STROOPS,
+  isLostClaimRaceError,
+  isPermanentError,
+  runKeeperRound,
   ShutdownCoordinator,
   WithdrawalStrategy,
   FixedThresholdStrategy,

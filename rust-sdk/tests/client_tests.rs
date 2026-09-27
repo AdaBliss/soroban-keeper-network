@@ -145,7 +145,7 @@ fn test_reputation_view() {
     let signer = KeypairSigner::new(admin_addr.clone());
 
     let client = KeeperClient::new(&env, contract_id, &signer);
-    
+
     let keeper = Address::generate(&env);
     let reputation = client.keeper_reputation(&keeper);
     assert_eq!(reputation, 95);
