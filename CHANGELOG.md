@@ -6,6 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — treasury fee routing (E08)
+
+- New `contracts/treasury` crate (`keeper-treasury`, `VERSION = 1`): splits
+  swept protocol fees across up to 10 recipients by fixed basis-point
+  shares. Entry points `initialize`, `set_recipients`, `distribute`,
+  `withdraw` and `transfer_admin`, and views `version`, `recipients`,
+  `recipient_balance`, `undistributed` and `total_distributed`. A recipient
+  set must sum to exactly 10,000 bps and is rejected otherwise, never
+  normalized. The first recipient absorbs the rounding remainder. See
+  `docs/TREASURY_DESIGN.md`.
+- The registry is unchanged: `sweep_fees` stays a plain transfer, and the
+  treasury is used by sweeping to its address.
+
+### Security — reputation review (E07)
+
+- `docs/REPUTATION_SECURITY_REVIEW.md` covers self-dealing, decay timing
+  and the eligibility floor. All three apply, and each is recorded as a
+  known limitation with a proposed mitigation. No contract behavior changed.
+
 ### Added — staking and slashing (E06)
 
 - Contract `VERSION` bumped `4` → `5`. This is an additive change: no

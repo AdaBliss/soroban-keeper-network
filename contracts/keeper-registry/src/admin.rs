@@ -168,6 +168,14 @@ impl KeeperRegistry {
     // Admin moves up to the accrued protocol fees to a treasury address. The
     // amount is checked against the FeesAccrued accumulator, so a sweep can
     // never dip into task escrow or keeper balances.
+    //
+    // E08 (docs/TREASURY_DESIGN.md §3): this stays a plain token transfer.
+    // To route fees through the treasury contract (`contracts/treasury`),
+    // the admin passes that contract's address as `treasury`; its
+    // permissionless `distribute` then splits what arrived across the
+    // configured recipients as a separate step. The registry never calls
+    // into the treasury, so a treasury fault cannot fail a sweep or reach
+    // task escrow, and this entry point's signature is unchanged.
 
     pub fn sweep_fees(
         e: Env,
