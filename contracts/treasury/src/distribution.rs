@@ -1,6 +1,6 @@
 //! Distribution and withdrawal — the treasury's fund-moving entry points.
 
-use soroban_sdk::{contractimpl, Address, Env};
+use soroban_sdk::{contractimpl, Address, Env, Vec};
 
 use crate::errors::TreasuryError;
 use crate::events::*;
@@ -37,12 +37,7 @@ impl Treasury {
             return Err(TreasuryError::NoRecipients);
         }
 
-        let mut total_shares: i128 = 0;
-        for recipient in list.iter() {
-            total_shares = total_shares
-                .checked_add(recipient_shares(&e, &recipient) as i128)
-                .ok_or(TreasuryError::ArithmeticOverflow)?;
-        }
+        let total_shares = total_shares(&e, &list)? as i128;
         if total_shares == 0 {
             return Err(TreasuryError::NoRecipients);
         }
@@ -54,6 +49,7 @@ impl Treasury {
         // token callback during the transfer below can never observe a state
         // where funds moved but no recipient was credited.
         let mut credited_total: i128 = 0;
+        let mut breakdown: Vec<(Address, i128)> = Vec::new(&e);
         for recipient in list.iter() {
             let shares = recipient_shares(&e, &recipient) as i128;
             if shares == 0 {
@@ -63,6 +59,10 @@ impl Treasury {
                 .checked_mul(shares)
                 .ok_or(TreasuryError::ArithmeticOverflow)?
                 / total_shares;
+            // Every registered recipient appears in the breakdown, including
+            // one whose floor-rounded share is zero, so the summary event is a
+            // complete record of how this call's split was applied.
+            breakdown.push_back((recipient.clone(), share_amount));
             if share_amount == 0 {
                 continue;
             }
@@ -78,6 +78,7 @@ impl Treasury {
             reward_token(&e)?.transfer(&caller, &e.current_contract_address(), &credited_total);
         }
 
+        emit_distribution(&e, &caller, amount, credited_total, &breakdown);
         Ok(())
     }
 

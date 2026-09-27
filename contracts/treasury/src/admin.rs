@@ -38,6 +38,31 @@ impl Treasury {
     // Admin-only recipient-configuration entry points. Not gated by pause —
     // pausing doesn't restrict what the admin itself can do, the same rule
     // the registry's admin entry points follow.
+    //
+    // Each one validates its own argument, applies the change, then
+    // re-validates the whole resulting set with `validate_recipient_set` (every
+    // registered share in `1..=MAX_SHARES_BPS`, total within
+    // `MAX_TOTAL_SHARES`). Shares are relative weights, so the set is not
+    // required to sum to 10_000; see `DataKey::RecipientShares`.
+    //
+    // ## Mid-flight configuration changes
+    //
+    // The treasury never holds a "received but not yet distributed" amount:
+    // `distribute` pulls from its caller exactly the sum it credits, in the
+    // same invocation that computes the split. Funds therefore only ever sit
+    // in the contract as a recipient's credited `RecipientBalance`, and a
+    // configuration change affects future `distribute` calls only:
+    //
+    // - `remove_recipient` stops future credits, but the recipient keeps its
+    //   credited balance and can still `withdraw` it. Re-adding it later
+    //   resumes crediting on top of that balance.
+    // - `update_recipient_shares` changes the weight used by the next
+    //   `distribute`. Balances already credited are not recomputed.
+    // - No change moves one recipient's balance to another, so the contract's
+    //   token balance always equals the sum of recipient balances.
+    //
+    // Tokens transferred to the contract directly (not via `distribute`) are
+    // not tracked by any balance and are unaffected by configuration changes.
 
     pub fn add_recipient(
         e: Env,
@@ -46,9 +71,7 @@ impl Treasury {
         shares_bps: u32,
     ) -> Result<(), TreasuryError> {
         require_admin(&e, &admin)?;
-        if shares_bps == 0 || shares_bps > MAX_SHARES_BPS {
-            return Err(TreasuryError::InvalidShares);
-        }
+        validate_shares(shares_bps)?;
         let mut list = recipient_list(&e);
         if list.iter().any(|a| a == recipient) {
             return Err(TreasuryError::RecipientAlreadyExists);
@@ -60,14 +83,8 @@ impl Treasury {
 
         list.push_back(recipient.clone());
         e.storage().instance().set(&DataKey::RecipientList, &list);
-        e.storage()
-            .persistent()
-            .set(&DataKey::RecipientShares(recipient.clone()), &shares_bps);
-        e.storage().persistent().extend_ttl(
-            &DataKey::RecipientShares(recipient.clone()),
-            RECIPIENT_BALANCE_BUMP_THRESHOLD,
-            RECIPIENT_BALANCE_BUMP_LEDGERS,
-        );
+        set_recipient_shares(&e, &recipient, shares_bps);
+        validate_recipient_set(&e, &list)?;
 
         emit_recipient_added(&e, &recipient, shares_bps);
         Ok(())
@@ -95,6 +112,7 @@ impl Treasury {
         e.storage()
             .persistent()
             .set(&DataKey::RecipientShares(recipient.clone()), &0u32);
+        validate_recipient_set(&e, &list)?;
 
         emit_recipient_removed(&e, &recipient);
         Ok(())
@@ -107,9 +125,7 @@ impl Treasury {
         new_shares_bps: u32,
     ) -> Result<(), TreasuryError> {
         require_admin(&e, &admin)?;
-        if new_shares_bps == 0 || new_shares_bps > MAX_SHARES_BPS {
-            return Err(TreasuryError::InvalidShares);
-        }
+        validate_shares(new_shares_bps)?;
         let list = recipient_list(&e);
         if !list.iter().any(|a| a == recipient) {
             return Err(TreasuryError::RecipientNotFound);
@@ -117,10 +133,8 @@ impl Treasury {
         bump_instance(&e);
 
         let old_shares_bps = recipient_shares(&e, &recipient);
-        e.storage().persistent().set(
-            &DataKey::RecipientShares(recipient.clone()),
-            &new_shares_bps,
-        );
+        set_recipient_shares(&e, &recipient, new_shares_bps);
+        validate_recipient_set(&e, &list)?;
 
         emit_recipient_shares_updated(&e, &recipient, old_shares_bps, new_shares_bps);
         Ok(())

@@ -13,6 +13,12 @@ pub const MAX_RECIPIENTS: u32 = 50;
 /// Basis-point denominator. A recipient's `shares_bps` must be in `1..=MAX_SHARES_BPS`.
 pub const MAX_SHARES_BPS: u32 = 10_000;
 
+/// Upper bound on the sum of every registered recipient's shares. Shares are
+/// relative weights (see [`crate::types::DataKey::RecipientShares`]), so the
+/// total is not pinned to 10_000; it is bounded so the pro-rata arithmetic in
+/// `distribute` stays well inside `i128` for any valid configuration.
+pub const MAX_TOTAL_SHARES: u32 = MAX_RECIPIENTS * MAX_SHARES_BPS;
+
 /// Ledgers of instance-storage lifetime requested on each state-mutating
 /// call. Mirrors `keeper-registry::INSTANCE_BUMP_LEDGERS`.
 pub(crate) const INSTANCE_BUMP_LEDGERS: u32 = 100_000;

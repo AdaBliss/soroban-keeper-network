@@ -27,6 +27,7 @@
 | [Storage layout survey](docs/STORAGE_LAYOUT.md) | `Task` struct storage-cost findings and recommendations |
 | [Audit scope](docs/AUDIT_SCOPE.md) | Surfaces and primary artifacts an external auditor should review, including the verifier integration |
 | [Events for a future indexer](docs/EVENTS.md) | Verifier-related event schema (epic E14 scope), field-by-field indexer purpose |
+| [Treasury events](docs/TREASURY_EVENTS.md) | Treasury event topic pairs, distribution breakdown, rebuilding recipient configuration from events |
 | [CI](docs/CI.md) | What each CI job checks and which are advisory vs. required |
 | [Deploying & running](docs/DEPLOYING.md) | Testnet deploy walkthrough and keeper-bot operator guide |
 | [Deployments](docs/DEPLOYMENTS.md) | Canonical record of on-chain addresses |

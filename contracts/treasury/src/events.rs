@@ -4,7 +4,7 @@
 //! consumers can filter without decoding the payload, mirroring
 //! `contracts/keeper-registry/src/events.rs`.
 
-use soroban_sdk::{symbol_short, Address, BytesN, Env};
+use soroban_sdk::{symbol_short, Address, BytesN, Env, Vec};
 
 pub fn emit_initialized(e: &Env, admin: &Address, reward_token: &Address) {
     e.events().publish(
@@ -47,6 +47,26 @@ pub fn emit_distributed(e: &Env, recipient: &Address, amount: i128, total_distri
     e.events().publish(
         (symbol_short!("dist"), symbol_short!("recip")),
         (recipient.clone(), amount, total_distributed),
+    );
+}
+
+/// One per successful `distribute` call, after its per-recipient
+/// `("dist", "recip")` events. `requested` is the amount the caller asked to
+/// distribute; `credited` is what was actually credited and pulled from the
+/// caller (`requested` minus the floor-rounding remainder, which is never
+/// collected). `breakdown` lists every registered recipient in registration
+/// order with the amount credited to it, zero included, and sums to
+/// `credited`.
+pub fn emit_distribution(
+    e: &Env,
+    caller: &Address,
+    requested: i128,
+    credited: i128,
+    breakdown: &Vec<(Address, i128)>,
+) {
+    e.events().publish(
+        (symbol_short!("dist"), symbol_short!("total")),
+        (caller.clone(), requested, credited, breakdown.clone()),
     );
 }
 
