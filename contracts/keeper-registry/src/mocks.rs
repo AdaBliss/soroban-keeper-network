@@ -87,6 +87,9 @@ impl ReentrantToken {
     /// yet is left alone).
     pub fn extend_ttl_for_test(env: Env, holders: soroban_sdk::Vec<Address>, to_ledger: u32) {
         env.storage().instance().extend_ttl(to_ledger, to_ledger);
+        env.storage()
+            .instance()
+            .extend_ttl(to_ledger, to_ledger);
         for holder in holders.iter() {
             let key = DataKey::Balance(holder);
             if env.storage().persistent().has(&key) {
@@ -297,6 +300,11 @@ fn reenter(env: &Env) {
             // call, so a correct CEI ordering (incident recorded before the
             // token transfer) rejects this as a duplicate.
             let incident_id = BytesN::from_array(env, &[9u8; 32]);
+            let treasury: Address = env
+                .storage()
+                .instance()
+                .get(&DataKey::TriggerTo)
+                .unwrap();
             match client.try_slash(
                 &admin,
                 &keeper,
