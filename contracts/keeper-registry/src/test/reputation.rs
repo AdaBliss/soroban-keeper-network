@@ -10,6 +10,15 @@ fn record(s: &TestSetup, keeper: &Address) -> crate::reputation::ReputationRecor
         .as_contract(&s.registry.address, || stored_record(&s.env, keeper))
 }
 
+/// These tests jump several half-lives (100,000 ledgers each), past the
+/// registry instance's 100,000-ledger bump, and the test host panics on an
+/// archived instance. Extend it the way live traffic would keep it alive.
+fn keep_registry_alive(s: &TestSetup) {
+    s.env.as_contract(&s.registry.address, || {
+        s.env.storage().instance().extend_ttl(1_000_000, 1_000_000);
+    });
+}
+
 #[test]
 fn successes_and_missed_lock_window_update_reputation() {
     let s = setup();
@@ -90,6 +99,7 @@ fn effective_reputation_decays_at_exact_half_life_boundaries_without_writing() {
     let stored = s.registry.keeper_reputation(&keeper);
     let half_life = crate::reputation::REPUTATION_DECAY_HALF_LIFE_LEDGERS;
     let origin = stored.last_updated_ledger;
+    keep_registry_alive(&s);
 
     goto_ledger(&s.env, origin + half_life - 1);
     assert_eq!(s.registry.effective_reputation(&keeper).score_bps, 10_000);
@@ -113,6 +123,7 @@ fn effective_reputation_decays_at_exact_half_life_boundaries_without_writing() {
 fn effective_reputation_for_untracked_keeper_is_zero_at_any_ledger() {
     let s = setup();
     let keeper = Address::generate(&s.env);
+    keep_registry_alive(&s);
     advance(
         &s.env,
         5 * crate::reputation::REPUTATION_DECAY_HALF_LIFE_LEDGERS,
