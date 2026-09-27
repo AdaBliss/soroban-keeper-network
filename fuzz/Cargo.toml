@@ -88,3 +88,10 @@ path = "fuzz_targets/reentrancy.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "reputation"
+path = "fuzz_targets/reputation.rs"
+test = false
+doc = false
+bench = false

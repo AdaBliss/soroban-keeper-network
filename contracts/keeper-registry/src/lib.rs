@@ -59,7 +59,7 @@ mod views;
 pub use constants::*;
 pub use errors::KeeperError;
 pub use events::*;
-pub use reputation::ReputationRecord;
+pub use reputation::{effective_record, ReputationRecord, REPUTATION_DECAY_HALF_LIFE_LEDGERS};
 pub use types::{BatchTaskParams, DataKey, Task, TaskStatus, TaskType};
 pub use verifier::{IKeeperVerifier, KeeperVerifierClient};
 
