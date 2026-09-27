@@ -35,6 +35,8 @@ use soroban_sdk::{Address, Env};
 use crate::{KeeperRegistryClient, TaskStatus};
 
 /// I-1 — Solvency: the registry's token balance always equals open task
+/// escrow plus credited keeper balances plus accrued fees plus total bonded
+/// stake (E06, `docs/STAKING_DESIGN.md`).
 /// escrow plus credited keeper balances plus accrued fees plus staked
 /// collateral (bonded or mid-unbond) plus rewards still within their
 /// execution dispute window (see docs/STAKING_DESIGN.md).
@@ -44,6 +46,11 @@ use crate::{KeeperRegistryClient, TaskStatus};
 /// doesn't hardcode a token client since the token address is
 /// contract-specific test/fuzz setup, not part of the registry ABI).
 ///
+/// `known_keepers`' stake is summed via `keeper_stake`, which includes any
+/// amount currently mid-unbond (`initiate_unbond` never transfers tokens out
+/// — only `withdraw_stake` does, once the delay elapses), so this remains
+/// correct across every staking entry point without a separate "unbonding"
+/// term.
 /// ## E06 extension (issue 0294 / #422)
 ///
 /// Two additions, both already inside the contract's token balance but not
@@ -98,6 +105,7 @@ pub fn assert_solvent(
     }
 
     let mut keeper_balances: i128 = 0;
+    let mut stake_total: i128 = 0;
     let mut keeper_stakes: i128 = 0;
     let mut pending_unbonds: i128 = 0;
     let mut pending_credits: i128 = 0;
@@ -105,6 +113,9 @@ pub fn assert_solvent(
         keeper_balances = keeper_balances
             .checked_add(registry.keeper_balance(keeper))
             .ok_or("keeper_balances overflowed while summing balances")?;
+        stake_total = stake_total
+            .checked_add(registry.keeper_stake(keeper))
+            .ok_or("stake_total overflowed while summing stakes")?;
         keeper_stakes = keeper_stakes
             .checked_add(registry.keeper_stake(keeper))
             .ok_or("keeper_stakes overflowed while summing stakes")?;
@@ -131,6 +142,9 @@ pub fn assert_solvent(
     let owed = open_escrow
         .checked_add(keeper_balances)
         .and_then(|sum| sum.checked_add(fees_accrued))
+        .and_then(|sum| sum.checked_add(stake_total))
+        .ok_or(
+            "owed total overflowed (open_escrow + keeper_balances + fees_accrued + stake_total)",
         .and_then(|sum| sum.checked_add(keeper_stakes))
         .and_then(|sum| sum.checked_add(pending_unbonds))
         .and_then(|sum| sum.checked_add(pending_credits))
@@ -143,6 +157,7 @@ pub fn assert_solvent(
         return Err(format!(
             "I-1 solvency violated: token_balance={token_balance} but owed={owed} \
              (open_escrow={open_escrow}, keeper_balances={keeper_balances}, \
+             fees_accrued={fees_accrued}, stake_total={stake_total})"
              fees_accrued={fees_accrued}, keeper_stakes={keeper_stakes}, \
              pending_unbonds={pending_unbonds}, pending_credits={pending_credits})"
         ));
