@@ -1564,6 +1564,15 @@ dependencies = [
 name = "keeper-registry"
 version = "0.1.0"
 dependencies = [
+ "keeper-treasury",
+ "proptest",
+ "soroban-sdk",
+]
+
+[[package]]
+name = "keeper-treasury"
+version = "0.1.0"
+dependencies = [
  "proptest",
  "soroban-sdk",
 ]
