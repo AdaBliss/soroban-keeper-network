@@ -13,6 +13,20 @@ categories = ["cryptography::cryptocurrencies"]
 # cdylib for the on-chain WASM build; rlib so the property tests (and any
 # other Rust-side consumer) can `use treasury::*` as a normal library
 # dependency instead of only linking the compiled WASM.
+name = "keeper-treasury"
+version = "0.1.0"
+edition = "2021"
+authors = ["Soroban Keeper Network Contributors"]
+description = "Protocol fee treasury for the Soroban Keeper Network: splits swept registry fees across configured recipients"
+license = "Apache-2.0"
+repository = "https://github.com/soroban-tooling/soroban-keeper-network"
+keywords = ["soroban", "stellar", "keeper", "treasury", "defi"]
+categories = ["cryptography::cryptocurrencies"]
+
+[lib]
+# cdylib for the on-chain WASM build; rlib so the registry's test suite can
+# register this contract for the sweep-to-distribution round trip
+# (docs/TREASURY_DESIGN.md §3).
 crate-type = ["cdylib", "rlib"]
 
 [features]
