@@ -1,46 +1,55 @@
 # Soroban Keeper Bot v2
 
-A high-performance, modular off-chain keeper bot for the [Soroban Keeper Network](https://github.com/soroban-tooling/soroban-keeper-network).
-
-> [!NOTE]
-> If you are a newcomer to Soroban, building a first integration, or exploring the smart contract ABI, start with the introductory single-file bot in [`examples/keeper-bot`](../keeper-bot).
-> 
-> **Keeper Bot v2** is intended for operators running competitive keepers with requirements for concurrency, custom withdrawal schedules, lock-window-aware scheduling, and state persistence.
+> **Notice for Newcomers:** This package is **keeper-bot-v2**, engineered specifically for production operators who require concurrent task processing, multi-account transaction submission, persistent state tracking across restarts, Prometheus metrics, and strict startup validation.
+>
+> If you are exploring the Soroban Keeper Network for the first time or looking for an educational, single-file, zero-dependency walkthrough, please refer to the beginner-friendly [v1 Keeper Bot](../keeper-bot) instead.
 
 ---
 
-## 🚀 Key Architectural Capabilities
+## Overview
 
-### 1. Graceful Shutdown Guarantee Under Concurrency (`src/shutdown.js`)
-* **Worker Draining**: When a `SIGINT` or `SIGTERM` signal is received, the bot stops accepting new candidate tasks and drains all active in-flight workers.
-* **No Mid-Submission Kills**: Each concurrent worker finishes its current submission and persists its outcome before the process exits.
-* **Bounded Maximum Wait**: Uses a configurable maximum drain ceiling (`maxDrainMs`) to prevent a deadlocked worker or hung network connection from blocking shutdown indefinitely.
+Keeper Bot v2 is a high-throughput, enterprise-ready off-chain daemon for the Soroban Keeper Network. Key features include:
 
-### 2. Pluggable Withdrawal Strategies (`src/withdrawal.js`)
-* **Default Fixed-Threshold Strategy**: Matches the v1 threshold behavior exactly (`WITHDRAW_THRESHOLD`, defaulting to 1 XLM), ensuring seamless zero-configuration migrations.
-* **Fixed-Schedule Strategy**: Automatically triggers withdrawals on a time or ledger interval (e.g. hourly or daily) for accounting, liquidity, or tax management.
-* **Fee-Aware Strategy**: Dynamically adjusts withdrawal floors to trigger payouts opportunistically when Stellar network base fees are low.
-* **Custom Strategy Interface**: Fully pluggable interface allows operators to implement custom logic (e.g., epoch-based treasury sweeps).
-
-### 3. Lock-Window-Aware Scheduling (`src/scheduling.js`)
-* **Exact Contract Arithmetic**: Computes the exact ledger when a locked task becomes re-claimable (`claim_ledger + lock_ledgers`), matching `contracts/keeper-registry/src/internal.rs`.
-* **Targeted Re-checks**: Rather than waiting for a full periodic event scan to rediscover expired locks, the bot schedules targeted re-checks right at the unlock ledger boundary.
-* **Additive Discovery**: Re-check candidate tasks are merged additively with standard polling without disrupting the discovery of newly registered tasks.
+- **Full Startup Configuration Schema Validation**: Performs both per-field validation and cross-field consistency checks (e.g. concurrency limits vs account pool size, profitability margins vs fee ceilings) to fail fast before any runtime operations begin.
+- **Per-Task-Type Observability**: Exposes detailed metrics broken down by `task_type` (claimed, executed, skipped counts by reason, and net profit per type) in Prometheus exposition format.
+- **Persistent State & Idempotency**: Backed by PostgreSQL (`DATABASE_URL`) to record task outcomes and prevent duplicate claims or executions across restarts.
+- **Multi-Account Concurrency**: Distributes tasks across multiple signing accounts in `SIGNING_KEY_POOL` to bypass single-account sequence number serialization.
+- **Pluggable Executors**: Discoverable executor modules with automatic metrics registration.
+- **Graceful Shutdown**: Stops accepting new work on `SIGINT` or `SIGTERM`, drains in-flight workers, and bounds shutdown time.
+- **Lock-Aware Scheduling**: Rechecks claimed tasks at their unlock ledger while continuing normal task discovery.
+- **Scheduled and Fee-Aware Withdrawals**: Supports fixed schedules and withdrawal decisions based on network fees.
 
 ---
 
-## 🛠️ Testing & Verification
+## Quickstart
 
-Run the test suite using Node's built-in test runner:
+### Prerequisites
+- Node.js >= 18.0.0
+- A funded Stellar account (secret key starting with `S...`) or key pool
+- PostgreSQL database instance (for persistent task tracking)
+- Deployed `KeeperRegistry` contract ID (starting with `C...`)
 
+### Installation & Configuration
 ```bash
+# Install dependencies
+npm install
+
+# Copy configuration template
+cp .env.example .env
+
+# Build TypeScript
+npm run build
+
+# Run tests
 npm test
-```
 
-Run linting:
-
-```bash
+# Run linter
 npm run lint
+
+# Start daemon
+npm start
 ```
 
-For design rationale, comparison with the Rust SDK example, and architecture specifications, see [`docs/KEEPER_BOT_V2_DESIGN.md`](../../docs/KEEPER_BOT_V2_DESIGN.md).
+For migration instructions from v1, see [docs/KEEPER_BOT_V2_MIGRATION.md](../../docs/KEEPER_BOT_V2_MIGRATION.md).
+
+For design rationale and the shutdown, scheduling, and withdrawal architecture, see [docs/KEEPER_BOT_V2_DESIGN.md](../../docs/KEEPER_BOT_V2_DESIGN.md).

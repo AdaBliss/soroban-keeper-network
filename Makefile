@@ -58,8 +58,8 @@ sdk-ts: ## Build and test the TypeScript SDK (matches CI)
 bot-test: sdk-ts ## Build the SDK then run the keeper bot's tests (matches CI) — bot depends on sdk-ts's dist/ output
 	cd examples/keeper-bot && npm install --no-audit --no-fund && npm test && npm run lint
 
-bot-v2-test: sdk-ts ## Run keeper-bot-v2 tests and lint
-	cd examples/keeper-bot-v2 && npm install --no-audit --no-fund && npm test && npm run lint
+bot-v2-test: sdk-ts ## Build the SDK then build, test and lint keeper-bot-v2 (matches CI)
+	cd examples/keeper-bot-v2 && npm install --no-audit --no-fund && npm run build && npm test && npm run lint
 
 clean: ## Remove build artifacts
 	cargo clean
