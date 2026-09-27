@@ -137,6 +137,32 @@ pub enum EventPayload {
     },
     /// `(wdraw, recip)` — `(recipient, amount)`
     TreasuryWithdrawn { recipient: String, amount: i128 },
+    // ── staking (epic E06, issue 0296) ───────────────────────────────────────
+    /// `(deposit, stake)` — `(keeper, amount, new_total)`
+    StakeDeposited {
+        keeper: String,
+        amount: i128,
+        new_total: i128,
+    },
+    /// `(unbond, stake)` — `(keeper, amount, release_ledger)`
+    UnbondInitiated {
+        keeper: String,
+        amount: i128,
+        release_ledger: u32,
+    },
+    /// `(wdraw, stake)` — `(keeper, amount)`
+    StakeWithdrawn { keeper: String, amount: i128 },
+    /// `(slash, stake)` — `(keeper, amount, reason, incident_id, treasury)`
+    ///
+    /// `incident_id` is the contract's `BytesN<32>`, kept as raw bytes for the
+    /// same reason as `Upgraded::new_wasm_hash` above.
+    Slashed {
+        keeper: String,
+        amount: i128,
+        reason: String,
+        incident_id: [u8; 32],
+        treasury: String,
+    },
 }
 
 impl EventPayload {
@@ -163,6 +189,10 @@ impl EventPayload {
             Self::RecipientSharesUpdated { .. } => ("rshr", "recip"),
             Self::Distributed { .. } => ("dist", "recip"),
             Self::TreasuryWithdrawn { .. } => ("wdraw", "recip"),
+            Self::StakeDeposited { .. } => ("deposit", "stake"),
+            Self::UnbondInitiated { .. } => ("unbond", "stake"),
+            Self::StakeWithdrawn { .. } => ("wdraw", "stake"),
+            Self::Slashed { .. } => ("slash", "stake"),
         };
         EventTopic { verb, noun }
     }

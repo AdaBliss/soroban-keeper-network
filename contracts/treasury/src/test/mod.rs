@@ -11,3 +11,8 @@ mod distribution;
 mod events;
 mod recipients;
 mod reconfiguration;
+mod conservation;
+mod distribution;
+mod recipients;
+mod reentrancy;
+mod views;

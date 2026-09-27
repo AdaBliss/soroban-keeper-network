@@ -23,4 +23,6 @@ pub use network::{CustomNetworkConfig, Network, NetworkConfig, FUTURENET, MAINNE
 pub use retry::{default_classify, ErrorClass, RetryPolicy, RpcCallError, TransportError};
 pub use signing::{KeypairSigner, SignerError, TransactionSigner};
 pub use treasury_client::{Recipient, TreasuryClient};
-pub use types::{BatchTaskParams, Task, TaskStatus, TaskType};
+pub use types::{
+    BatchTaskParams, PendingCredit, SlashRecord, Task, TaskStatus, TaskType, UnbondRequest,
+};
