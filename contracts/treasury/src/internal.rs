@@ -56,6 +56,56 @@ pub(crate) fn recipient_shares(e: &Env, recipient: &Address) -> u32 {
         .unwrap_or(0u32)
 }
 
+/// Writes a recipient's shares and renews the entry's TTL. Every write goes
+/// through here so a reweighted recipient's entry can't be left to archive on
+/// the TTL it was given at `add_recipient` time.
+pub(crate) fn set_recipient_shares(e: &Env, recipient: &Address, shares_bps: u32) {
+    let key = DataKey::RecipientShares(recipient.clone());
+    e.storage().persistent().set(&key, &shares_bps);
+    e.storage().persistent().extend_ttl(
+        &key,
+        RECIPIENT_BALANCE_BUMP_THRESHOLD,
+        RECIPIENT_BALANCE_BUMP_LEDGERS,
+    );
+}
+
+/// Rejects a single share value outside `1..=MAX_SHARES_BPS`.
+pub(crate) fn validate_shares(shares_bps: u32) -> Result<(), TreasuryError> {
+    if shares_bps == 0 || shares_bps > MAX_SHARES_BPS {
+        return Err(TreasuryError::InvalidShares);
+    }
+    Ok(())
+}
+
+/// Sum of every registered recipient's shares — the pro-rata denominator
+/// `distribute` splits against.
+pub(crate) fn total_shares(e: &Env, list: &Vec<Address>) -> Result<u32, TreasuryError> {
+    let mut total: u32 = 0;
+    for recipient in list.iter() {
+        total = total
+            .checked_add(recipient_shares(e, &recipient))
+            .ok_or(TreasuryError::ArithmeticOverflow)?;
+    }
+    Ok(total)
+}
+
+/// Re-validates the whole recipient set after a configuration change: every
+/// registered recipient holds a share in `1..=MAX_SHARES_BPS`, and the total
+/// stays within `MAX_TOTAL_SHARES`, so the set still defines a valid
+/// pro-rata split. An empty set is valid (`distribute` rejects it with
+/// `NoRecipients` without moving funds). Called after the change is written;
+/// returning an error reverts the whole invocation, so a rejected change
+/// leaves storage exactly as it was.
+pub(crate) fn validate_recipient_set(e: &Env, list: &Vec<Address>) -> Result<(), TreasuryError> {
+    for recipient in list.iter() {
+        validate_shares(recipient_shares(e, &recipient))?;
+    }
+    if total_shares(e, list)? > MAX_TOTAL_SHARES {
+        return Err(TreasuryError::InvalidShares);
+    }
+    Ok(())
+}
+
 pub(crate) fn reward_token(e: &Env) -> Result<token::Client<'_>, TreasuryError> {
     let addr: Address = e
         .storage()

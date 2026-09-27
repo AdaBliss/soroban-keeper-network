@@ -9,3 +9,4 @@ mod admin;
 mod common;
 mod distribution;
 mod recipients;
+mod reconfiguration;
