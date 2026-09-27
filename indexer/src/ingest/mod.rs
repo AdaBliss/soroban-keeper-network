@@ -15,6 +15,7 @@ pub mod keepers;
 pub mod parse;
 pub mod staking;
 pub mod tasks;
+pub mod treasury;
 pub mod reputation;
 
 use anyhow::Result;

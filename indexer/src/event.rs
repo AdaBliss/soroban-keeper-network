@@ -116,6 +116,27 @@ pub enum EventPayload {
         new_wasm_hash: [u8; 32],
     },
 
+    // ── treasury: recipient management ───────────────────────────────────────
+    /// `(radd, recip)` — `(recipient, shares_bps)`
+    RecipientAdded { recipient: String, shares_bps: u32 },
+    /// `(rrm, recip)` — `(recipient,)`
+    RecipientRemoved { recipient: String },
+    /// `(rshr, recip)` — `(recipient, old_shares_bps, new_shares_bps)`
+    RecipientSharesUpdated {
+        recipient: String,
+        old_shares_bps: u32,
+        new_shares_bps: u32,
+    },
+
+    // ── treasury: distribution ────────────────────────────────────────────────
+    /// `(dist, recip)` — `(recipient, amount, total_distributed)`
+    Distributed {
+        recipient: String,
+        amount: i128,
+        total_distributed: i128,
+    },
+    /// `(wdraw, recip)` — `(recipient, amount)`
+    TreasuryWithdrawn { recipient: String, amount: i128 },
     // ── staking (epic E06, issue 0296) ───────────────────────────────────────
     /// `(deposit, stake)` — `(keeper, amount, new_total)`
     StakeDeposited {
@@ -163,6 +184,11 @@ impl EventPayload {
             Self::FeesSwept { .. } => ("sweep", "admin"),
             Self::Initialized { .. } => ("init", "admin"),
             Self::Upgraded { .. } => ("upgrade", "admin"),
+            Self::RecipientAdded { .. } => ("radd", "recip"),
+            Self::RecipientRemoved { .. } => ("rrm", "recip"),
+            Self::RecipientSharesUpdated { .. } => ("rshr", "recip"),
+            Self::Distributed { .. } => ("dist", "recip"),
+            Self::TreasuryWithdrawn { .. } => ("wdraw", "recip"),
             Self::StakeDeposited { .. } => ("deposit", "stake"),
             Self::UnbondInitiated { .. } => ("unbond", "stake"),
             Self::StakeWithdrawn { .. } => ("wdraw", "stake"),
