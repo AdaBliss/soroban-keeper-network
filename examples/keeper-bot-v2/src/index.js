@@ -1,5 +1,27 @@
 "use strict";
 
+/**
+ * Soroban Keeper Network — Keeper Bot v2 Core Package
+ *
+ * Designed for production operators running high-performance keepers.
+ * Provides modular components for:
+ * - Graceful shutdown and in-flight worker draining under concurrency (Issue #402)
+ * - Pluggable rewards withdrawal strategies (Issue #400)
+ * - Lock-window-aware task scheduling and targeted re-checks (Issue #399)
+ */
+
+const { ShutdownCoordinator } = require("./shutdown.js");
+const {
+  WithdrawalStrategy,
+  FixedThresholdStrategy,
+  FixedScheduleStrategy,
+  FeeAwareThresholdStrategy,
+  WithdrawalManager,
+} = require("./withdrawal.js");
+const {
+  computeUnlockLedger,
+  LockWindowScheduler,
+} = require("./scheduling.js");
 const { loadConfig } = require("./config.js");
 const { MetricsCollector, metrics } = require("./metrics.js");
 const { TaskStatus, TaskStateRegistry } = require("./state.js");
@@ -23,25 +45,6 @@ const {
   runKeeperRound,
 } = require("./loop.js");
 
-async function main() {
-  const config = loadConfig();
-  console.log("Starting Soroban Keeper Bot v2 with configuration:");
-  console.log(`  RPC URL: ${config.rpcUrl}`);
-  console.log(`  Contract ID: ${config.contractId}`);
-  console.log(`  Max Round Spend Ceiling: ${config.maxRoundSpendStroops} stroops`);
-  console.log(`  Concurrency Limit: ${config.maxConcurrency}`);
-  console.log(`  Min Profit Margin: ${config.minProfitMarginStroops} stroops`);
-  console.log(`  Simulate Execution: ${config.simulateExecution}`);
-  console.log("\nNote: Verifier-aware proof generation is deferred until on-chain contract support lands (Issue #412).");
-}
-
-if (require.main === module) {
-  main().catch((err) => {
-    console.error("Fatal startup error:", err);
-    process.exit(1);
-  });
-}
-
 module.exports = {
   loadConfig,
   MetricsCollector,
@@ -61,4 +64,12 @@ module.exports = {
   isLostClaimRaceError,
   isPermanentError,
   runKeeperRound,
+  ShutdownCoordinator,
+  WithdrawalStrategy,
+  FixedThresholdStrategy,
+  FixedScheduleStrategy,
+  FeeAwareThresholdStrategy,
+  WithdrawalManager,
+  computeUnlockLedger,
+  LockWindowScheduler,
 };
