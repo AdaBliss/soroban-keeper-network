@@ -15,6 +15,8 @@
 //! - Admin: `pause`/`unpause`, `transfer_admin`, `upgrade`
 //! - Read-only views — `recipients`, `recipient_shares`, `recipient_balance`,
 //!   `recipient_total_received`, `total_distributed`, `is_paused`, etc.
+//! - Events for every distribution and configuration change; topic pairs and
+//!   payloads are documented in `docs/TREASURY_EVENTS.md`
 //!
 //! ## Storage Layout
 //! - Instance:   Admin, Paused, RewardToken, RecipientList, TotalDistributed

@@ -8,5 +8,6 @@
 mod admin;
 mod common;
 mod distribution;
+mod events;
 mod recipients;
 mod reconfiguration;
